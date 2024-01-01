@@ -1,0 +1,79 @@
+﻿@using CustomAdaptorSortFilter.Data
+@using Newtonsoft.Json
+
+@inherits DataAdaptor
+
+<CascadingValue Value="@this">
+    @ChildContent
+</CascadingValue>
+
+
+@code {
+
+    [Parameter]
+    [JsonIgnore]
+    public RenderFragment ChildContent { get; set; }
+
+    //[CascadingParameter]
+    //public EjsDataManager Data { get; set; }
+
+
+    OrderDataAccessLayer orderdata;
+    // Performs data Read operation
+    public override object Read(DataManagerRequest dm, string key = null)
+    {
+        //   await Task.Delay(100);
+        orderdata = (OrderDataAccessLayer)ScopedServices.GetService(typeof(OrderDataAccessLayer));
+        IEnumerable<Order> DataSource = (IEnumerable<Order>)orderdata.GetAllOrders().ToList();
+        //  DbSet<Order> DataSource = (DbSet<Order>)orderdata.GetAllOrders();
+        if (dm.Search != null && dm.Search.Count > 0)
+        {
+            // Searching
+            DataSource = DataOperations.PerformSearching(DataSource, dm.Search);
+        }
+        if (dm.Sorted != null && dm.Sorted.Count > 0)
+        {
+            // Sorting
+            DataSource = DataOperations.PerformSorting(DataSource, dm.Sorted);
+        }
+        if (dm.Where != null && dm.Where.Count > 0)
+        {
+            // Filtering
+            DataSource = DataOperations.PerformFiltering(DataSource, dm.Where, dm.Where[0].Operator);
+        }
+        int count = DataSource.Cast<Order>().Count();
+        if (dm.Skip != 0)
+        {
+            //Paging
+            DataSource = DataOperations.PerformSkip(DataSource, dm.Skip);
+        }
+        if (dm.Take != 0)
+        {
+            DataSource = DataOperations.PerformTake(DataSource, dm.Take);
+        }
+        return dm.RequiresCounts ? new DataResult() { Result = DataSource, Count = count } : (object)DataSource;
+    }
+
+
+    // Performs Insert operation
+    public override object Insert(DataManager dm, object value, string key)
+    {
+        orderdata.AddOrder(value as CustomAdaptorSortFilter.Data.Order);
+        // Orders.Insert(0, value as Order);
+        return value;
+    }
+
+    // Performs Remove operation
+    public override object Remove(DataManager dm, object value, string keyField, string key)
+    {
+        orderdata.DeleteOrder(value as int?);
+        return value;
+    }
+
+    // Performs Update operation
+    public override object Update(DataManager dm, object value, string keyField, string key)
+    {
+        orderdata.UpdateOrder(value as CustomAdaptorSortFilter.Data.Order);
+        return value;
+    }
+}
